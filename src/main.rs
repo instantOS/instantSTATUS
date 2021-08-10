@@ -46,7 +46,7 @@ impl Applet {
             Ok(output) => {
                 return Some(format!(
                     "^c#ff0000^^f11^{}^f11^",
-                    String::from(str::from_utf8(&output.stdout).unwrap())
+                    String::from_utf8(output.stdout).unwrap()
                 ));
             }
             Err(_) => {}
