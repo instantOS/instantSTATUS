@@ -23,24 +23,19 @@ enum Appletlocation {
 pub struct Applet {
     time: u32,
     script: String,
+    script_path: String,
+
     location: Appletlocation,
 }
 
 impl Applet {
     fn render(&self, data: &Statusdata) -> Option<String> {
-        let scriptpath = match &self.location {
-            Appletlocation::User => format!(
-                "{}/instantstatus/applets/{}.ist.sh",
-                &data.configpath, &self.script
-            ),
-            Appletlocation::Global => {
-                format!("/usr/share/instantstatus/applets/{}.ist.sh", &self.script)
-            }
-        };
-
         match Command::new("bash")
             .arg("-c")
-            .arg(&format!("cd && source {} && status_display", &scriptpath))
+            .arg(format!(
+                "cd && source {} && status_display",
+                self.script_path
+            ))
             .output()
         {
             Ok(output) => {
@@ -54,19 +49,19 @@ impl Applet {
         None
     }
 
-    fn new(name: String) -> Option<Applet> {
-        let mut appletpath = config_dir().unwrap();
-
-        appletpath.push(format!("instantstatus/applets/{}.ist.sh", &name));
+    fn new(name: String, data: &Statusdata) -> Option<Applet> {
+        let mut script_path = PathBuf::from(&data.configpath);
+        script_path.push(format!("instantstatus/applets/{}.ist.sh", &name));
 
         let mut location = Appletlocation::Global;
 
-        if appletpath.is_file() {
+        if script_path.is_file() {
             location = Appletlocation::User;
         } else {
-            let globalpath =
+            script_path =
                 PathBuf::from(format!("/usr/share/instantstatus/applets/{}.ist.sh", &name));
-            if globalpath.is_file() {
+
+            if script_path.is_file() {
             } else {
                 eprintln!("applet {} does not exist", &name);
                 return None;
@@ -76,6 +71,7 @@ impl Applet {
         Some(Applet {
             time: 0,
             script: name,
+            script_path: String::from(script_path.to_str().unwrap()),
             location,
         })
     }
@@ -90,7 +86,7 @@ fn main() {
         std::fs::create_dir_all(confdir).unwrap();
     }
 
-    let tester2 = Applet::new(String::from("hello")).unwrap();
+    let tester2 = Applet::new(String::from("hello"), &data).unwrap();
     let tester = tester2.render(&data).unwrap();
     println!("{}", tester)
 }
