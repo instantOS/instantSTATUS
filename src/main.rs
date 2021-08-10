@@ -57,20 +57,15 @@ impl Applet {
     fn new(name: String) -> Option<Applet> {
         let mut appletpath = config_dir().unwrap();
 
-        appletpath.push(Path::new(&format!(
-            "instantstatus/applets/{}.ist.sh",
-            &name
-        )));
+        appletpath.push(format!("instantstatus/applets/{}.ist.sh", &name));
 
         let mut location = Appletlocation::Global;
 
         if appletpath.is_file() {
             location = Appletlocation::User;
         } else {
-            let globalpath = PathBuf::from(&format!(
-                "/usr/share/instantstatus/applets/{}.ist.sh",
-                &name
-            ));
+            let globalpath =
+                PathBuf::from(format!("/usr/share/instantstatus/applets/{}.ist.sh", &name));
             if globalpath.is_file() {
             } else {
                 eprintln!("applet {} does not exist", &name);
@@ -89,7 +84,7 @@ impl Applet {
 fn main() {
     let data = Statusdata::new();
     let mut confdir = config_dir().unwrap();
-    confdir.push(Path::new("instantstatus/applets"));
+    confdir.push("instantstatus/applets");
 
     if !confdir.exists() {
         std::fs::create_dir_all(confdir).unwrap();
