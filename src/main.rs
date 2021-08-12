@@ -5,12 +5,15 @@ use std::str;
 
 pub struct Statusdata {
     configpath: String,
+    configpath_buf: PathBuf,
 }
 
 impl Statusdata {
     fn new() -> Statusdata {
+        let cpath = config_dir().expect("~/.config not existing or not readable");
         Statusdata {
-            configpath: String::from(config_dir().unwrap().to_str().unwrap()),
+            configpath_buf: cpath.clone(),
+            configpath: String::from(cpath.to_str().unwrap()),
         }
     }
 }
@@ -23,30 +26,22 @@ enum Appletlocation {
 pub struct Applet {
     time: u32,
     script: String,
+    script_path: String,
     location: Appletlocation,
 }
 
 impl Applet {
-    fn render(&self, data: &Statusdata) -> Option<String> {
-        let scriptpath = match &self.location {
-            Appletlocation::User => format!(
-                "{}/instantstatus/applets/{}.ist.sh",
-                &data.configpath, &self.script
-            ),
-            Appletlocation::Global => {
-                format!("/usr/share/instantstatus/applets/{}.ist.sh", &self.script)
-            }
-        };
+    fn render(&self) -> Option<String> {
 
         match Command::new("bash")
             .arg("-c")
-            .arg(&format!("cd && source {} && status_display", &scriptpath))
+            .arg(&format!("cd && source {} && status_display", &self.script_path))
             .output()
         {
             Ok(output) => {
                 return Some(format!(
                     "^c#ff0000^^f11^{}^f11^",
-                    String::from(str::from_utf8(&output.stdout).unwrap().trim())
+                    String::from_utf8(output.stdout).unwrap().trim()
                 ));
             }
             Err(_) => {}
@@ -54,14 +49,11 @@ impl Applet {
         None
     }
 
-    fn new(name: String) -> Option<Applet> {
-        let mut appletpath = config_dir().unwrap();
+    fn new(name: String, data: Statusdata) -> Option<Applet> {
 
-        appletpath.push(Path::new(&format!(
-            "instantstatus/applets/{}.ist.sh",
-            &name
-        )));
+        let mut appletpath = data.configpath_buf.clone();
 
+        appletpath.push(&format!("instantstatus/applets/{}.ist.sh", &name));
 
         let mut location = Appletlocation::Global;
 
@@ -79,9 +71,20 @@ impl Applet {
             }
         }
 
+        let scriptpath = match location {
+            Appletlocation::User => format!(
+                "{}/instantstatus/applets/{}.ist.sh",
+                &data.configpath, &name
+            ),
+            Appletlocation::Global => {
+                format!("/usr/share/instantstatus/applets/{}.ist.sh", &name)
+            }
+        };
+
         Some(Applet {
             time: 0,
             script: name,
+            script_path: scriptpath,
             location,
         })
     }
@@ -90,13 +93,13 @@ impl Applet {
 fn main() {
     let data = Statusdata::new();
     let mut confdir = config_dir().unwrap();
-    confdir.push(Path::new("instantstatus/applets"));
+    confdir.push("instantstatus/applets");
 
     if !confdir.exists() {
         std::fs::create_dir_all(confdir).unwrap();
     }
 
-    let tester2 = Applet::new(String::from("hello")).unwrap();
-    let tester = tester2.render(&data).unwrap();
+    let tester2 = Applet::new(String::from("hello"), data).unwrap();
+    let tester = tester2.render().unwrap();
     println!("{}", tester)
 }
