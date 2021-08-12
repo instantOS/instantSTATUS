@@ -1,7 +1,12 @@
 use dirs::config_dir;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::Command;
-use std::str;
+
+use x11rb::connection::Connection;
+use x11rb::errors::ReplyOrIdError;
+use x11rb::protocol::xproto::*;
+use x11rb::wrapper::ConnectionExt;
+use x11rb::COPY_DEPTH_FROM_PARENT;
 
 pub struct Statusdata {
     configpath: String,
@@ -32,10 +37,12 @@ pub struct Applet {
 
 impl Applet {
     fn render(&self) -> Option<String> {
-
         match Command::new("bash")
             .arg("-c")
-            .arg(&format!("cd && source {} && status_display", &self.script_path))
+            .arg(&format!(
+                "cd && source {} && status_display",
+                &self.script_path
+            ))
             .output()
         {
             Ok(output) => {
@@ -50,7 +57,6 @@ impl Applet {
     }
 
     fn new(name: String, data: Statusdata) -> Option<Applet> {
-
         let mut appletpath = data.configpath_buf.clone();
 
         appletpath.push(&format!("instantstatus/applets/{}.ist.sh", &name));
@@ -101,5 +107,21 @@ fn main() {
 
     let tester2 = Applet::new(String::from("hello"), data).unwrap();
     let tester = tester2.render().unwrap();
-    println!("{}", tester)
+
+    println!("this is not supposed to show in the window name");
+    println!("{}", &tester);
+
+    let (conn, screen_num) = x11rb::connect(None).unwrap();
+    let screen = &conn.setup().roots[screen_num];
+    let root = screen.root;
+    conn.change_property8(
+        PropMode::REPLACE,
+        root,
+        AtomEnum::WM_NAME,
+        AtomEnum::STRING,
+        tester.as_bytes(),
+    )
+    .unwrap();
+
+    conn.flush().unwrap();
 }
