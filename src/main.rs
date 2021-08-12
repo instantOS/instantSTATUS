@@ -1,12 +1,14 @@
 use dirs::config_dir;
+use std::fs::OpenOptions;
+use std::io::Write;
 use std::path::PathBuf;
 use std::process::Command;
 
+use clap::{App, AppSettings, Arg, ArgMatches};
+use toml;
 use x11rb::connection::Connection;
-use x11rb::errors::ReplyOrIdError;
 use x11rb::protocol::xproto::*;
 use x11rb::wrapper::ConnectionExt;
-use x11rb::COPY_DEPTH_FROM_PARENT;
 
 pub struct Statusdata {
     configpath: String,
@@ -97,9 +99,56 @@ impl Applet {
 }
 
 fn main() {
+    let default_config = include_str!("../default/config.toml");
+    let matches = App::new("instantSTATUS")
+        .version("0.0.1")
+        .author("paperbenni <paperbenni@gmail.com>")
+        .about("simple status bar for instantWM")
+        .arg(
+            Arg::new("write-config-file")
+                .short('w')
+                .about("write the default configuration file to stdout (-) or to a file")
+                .takes_value(true),
+        )
+        .setting(AppSettings::ColoredHelp)
+        .get_matches();
+
+    if matches.is_present("write-config-file") {
+        match matches.value_of("write-config-file") {
+            Some(value) => {
+                if value == "-" {
+                    println!("{}", default_config);
+                } else {
+                    match OpenOptions::new()
+                        .write(true)
+                        .create(true)
+                        .open(value)
+                        .unwrap()
+                        .write(default_config.as_bytes())
+                    {
+                        Ok(_) => {}
+                        Err(_) => {
+                            println!("{}", value);
+                        }
+                    }
+                }
+            }
+            None => {
+                println!("{}", default_config);
+            }
+        }
+        return;
+    }
+
     let data = Statusdata::new();
+
     let mut confdir = config_dir().unwrap();
     confdir.push("instantstatus/applets");
+
+    let mut tomlpath = data.configpath_buf.clone();
+    tomlpath.push("config.toml");
+
+    if !tomlpath.is_file() {}
 
     if !confdir.exists() {
         std::fs::create_dir_all(confdir).unwrap();
