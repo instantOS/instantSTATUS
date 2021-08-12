@@ -146,19 +146,35 @@ fn main() {
     confdir.push("instantstatus/applets");
 
     let mut tomlpath = data.configpath_buf.clone();
-    tomlpath.push("config.toml");
-
-    if !tomlpath.is_file() {}
+    tomlpath.push("instantstatus/config.toml");
 
     if !confdir.exists() {
-        std::fs::create_dir_all(confdir).unwrap();
+        std::fs::create_dir_all(confdir).expect("could not create applet directory");
     }
 
+    if !tomlpath.is_file() {
+        match OpenOptions::new()
+            .write(true)
+            .create(true)
+            .open(&tomlpath)
+            .unwrap()
+            .write(default_config.as_bytes())
+        {
+            Ok(_) => {
+                println!(
+                    "initialized default config file in {}",
+                    &tomlpath.to_str().unwrap()
+                );
+            }
+            Err(_) => {
+                eprintln!("Warning: Could not create default config file");
+            }
+        }
+    }
+
+    // down here is testing stuff
     let tester2 = Applet::new(String::from("hello"), data).unwrap();
     let tester = tester2.render().unwrap();
-
-    println!("this is not supposed to show in the window name");
-    println!("{}", &tester);
 
     let (conn, screen_num) = x11rb::connect(None).unwrap();
     let screen = &conn.setup().roots[screen_num];
