@@ -3,8 +3,14 @@ name = "instantSTATUS"
 version = "0.1.0"
 authors = ["paperbenni <paperbenni@gmail.com>"]
 edition = "2018"
+links = "X11"
+build = "build.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+xlib = []
+
 [dependencies]
+x11 = "2.18.2"
 dirs = "3.0.2"
