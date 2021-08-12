@@ -27,26 +27,15 @@ pub struct Applet {
 }
 
 impl Applet {
-    // fn getpath(&self) -> String {
-    //     match self.location {
-    //         User => {
-    //             return String::from(&format("{}"))
-    //         }
-    //     }
-    //     String::from("asd")
-    // }
-
     fn render(&self, data: &Statusdata) -> Option<String> {
-
         let scriptpath = match &self.location {
-            User => format!(
+            Appletlocation::User => format!(
                 "{}/instantstatus/applets/{}.ist.sh",
                 &data.configpath, &self.script
             ),
-            Global => format!(
-                "/usr/share/instantstatus/applets/{}.ist.sh",
-                &self.script
-            ),
+            Appletlocation::Global => {
+                format!("/usr/share/instantstatus/applets/{}.ist.sh", &self.script)
+            }
         };
 
         match Command::new("bash")
@@ -55,7 +44,10 @@ impl Applet {
             .output()
         {
             Ok(output) => {
-                return Some(String::from(str::from_utf8(&output.stdout).unwrap()));
+                return Some(format!(
+                    "^c#ff0000^^f11^{}^f11^",
+                    String::from(str::from_utf8(&output.stdout).unwrap().trim())
+                ));
             }
             Err(_) => {}
         };
@@ -70,7 +62,6 @@ impl Applet {
             &name
         )));
 
-        println!("{}", appletpath.to_str().unwrap());
 
         let mut location = Appletlocation::Global;
 
