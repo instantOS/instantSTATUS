@@ -1,11 +1,11 @@
 use dirs::config_dir;
-use std::fs::OpenOptions;
+use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::Command;
 
 use clap::{App, AppSettings, Arg, ArgMatches};
-use toml;
+use toml::Value;
 use x11rb::connection::Connection;
 use x11rb::protocol::xproto::*;
 use x11rb::wrapper::ConnectionExt;
@@ -152,7 +152,10 @@ fn main() {
         std::fs::create_dir_all(confdir).expect("could not create applet directory");
     }
 
+    let mut use_default_config = false;
+
     if !tomlpath.is_file() {
+        use_default_config = true;
         match OpenOptions::new()
             .write(true)
             .create(true)
@@ -170,6 +173,32 @@ fn main() {
                 eprintln!("Warning: Could not create default config file");
             }
         }
+    }
+
+    let tomlcontent: String;
+
+    if use_default_config {
+        tomlcontent = String::from(default_config);
+    } else {
+        tomlcontent = match fs::read_to_string(tomlpath) {
+            Ok(content) => content,
+            Err(_) => {
+                eprintln!("Warning: could not read user config file");
+                String::from(default_config)
+            }
+        }
+    }
+
+    // TODO: more useful error message
+    let config: Value = tomlcontent.parse().expect("error in config file");
+
+    match config.get("applet") {
+        Some(applets) => {
+            for i in applets.as_array().unwrap() {
+                println!("hello {:?}", i);
+            }
+        }
+        None => {}
     }
 
     // down here is testing stuff

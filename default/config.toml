@@ -1,3 +1,13 @@
 # instantSTATUS default config file
 
+[[applet]]
+name="cpu"
+refresh=20
 
+[[applet]]
+name="date"
+refresh=400
+
+[[applet]]
+name="clock"
+refresh=2
