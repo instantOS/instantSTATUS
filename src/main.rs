@@ -30,71 +30,163 @@ enum Appletlocation {
     Global,
 }
 
+enum AppletAction {
+    Display,
+    Button1,
+    Button2,
+    Button3,
+    Scrollup,
+    Scrolldown,
+}
+
+enum AppletType {
+    Script,
+    Directory,
+}
+
 pub struct Applet {
     time: u32,
     script: String,
-    script_path: String,
+    path: String,
     location: Appletlocation,
+    // boolean for presence of a display file
+    has_display: bool,
+    has_button1: bool,
+    has_button2: bool,
+    has_button3: bool,
+    has_scrollup: bool,
+    has_scrolldown: bool,
+    applettype: AppletType,
+}
+
+enum StringColor {
+    Color0,
+    Color1,
+    Color2,
+    Color3,
+    Color4,
+    Color5,
+    Color6,
+    Color7,
+    Color8,
+    Color9,
+    Color10,
+    Color11,
+    Color12,
+    Color13,
+    Color14,
+    Color15,
+    Custom(String),
+}
+
+struct StringOptions {
+    color: StringColor,
+}
+
+impl StringOptions {
+    fn new() -> StringOptions {
+        StringOptions {
+            color: StringColor::Color0,
+        }
+    }
+    fn render(&self, content: &str) -> String {
+        if content == "" {
+            return String::from("");
+        } else {
+            return format!("^c#ff0000^^f11^{}^f11^", content.trim());
+        }
+    }
 }
 
 impl Applet {
-    fn render(&self) -> Option<String> {
-        match Command::new("bash")
-            .arg("-c")
-            .arg(&format!(
-                "cd && source {} && status_display",
-                &self.script_path
-            ))
-            .output()
-        {
-            Ok(output) => {
-                return Some(format!(
-                    "^c#ff0000^^f11^{}^f11^",
-                    String::from_utf8(output.stdout).unwrap().trim()
-                ));
-            }
-            Err(_) => {}
-        };
-        None
-    }
+    // output applet content with markup as string
 
     fn new(name: String, data: Statusdata) -> Option<Applet> {
         let mut appletpath = data.configpath_buf.clone();
 
-        appletpath.push(&format!("instantstatus/applets/{}.ist.sh", &name));
+        appletpath.push(&format!("instantstatus/applets/{}", &name));
 
         let mut location = Appletlocation::Global;
 
-        if appletpath.is_file() {
+        if appletpath.exists() {
             location = Appletlocation::User;
         } else {
-            let globalpath = PathBuf::from(&format!(
-                "/usr/share/instantstatus/applets/{}.ist.sh",
-                &name
-            ));
-            if globalpath.is_file() {
-            } else {
+            let globalpath = PathBuf::from(&format!("/usr/share/instantstatus/applets/{}", &name));
+            if !globalpath.exists() {
                 eprintln!("applet {} does not exist", &name);
                 return None;
             }
         }
 
         let scriptpath = match location {
-            Appletlocation::User => format!(
-                "{}/instantstatus/applets/{}.ist.sh",
-                &data.configpath, &name
-            ),
+            Appletlocation::User => format!("{}/instantstatus/applets/{}", &data.configpath, &name),
             Appletlocation::Global => {
-                format!("/usr/share/instantstatus/applets/{}.ist.sh", &name)
+                format!("/usr/share/instantstatus/applets/{}", &name)
             }
         };
+
+        // check if scriptpath is a directory or a file
+        if PathBuf::from(&scriptpath).is_file() {
+            eprintln!("file based applets are not supported yet");
+            return None;
+        }
+
+        let mut has_display = false;
+        let mut has_button1 = false;
+        let mut has_button2 = false;
+        let mut has_button3 = false;
+        let mut has_scrollup = false;
+        let mut has_scrolldown = false;
+        println!("scriptpath {}", &scriptpath);
+
+        for i in fs::read_dir(&scriptpath).unwrap() {
+            let filename = &String::from(i.unwrap().file_name().to_str().unwrap());
+
+            has_display = has_display || filename == "display";
+            has_button1 = has_button1 || filename == "button1";
+            has_button2 = has_button2 || filename == "button2";
+            has_button3 = has_button3 || filename == "button3";
+            has_scrollup = has_scrollup || filename == "scrollup";
+            has_scrolldown = has_scrolldown || filename == "scrolldown";
+        }
+
+        if !has_display {
+            eprintln!("warning: applet {} does not have a display file", &name);
+        }
 
         Some(Applet {
             time: 0,
             script: name,
-            script_path: scriptpath,
+            path: scriptpath,
             location,
+            has_display,
+            has_button1,
+            has_button2,
+            has_button3,
+            has_scrollup,
+            has_scrolldown,
+            applettype: AppletType::Directory,
         })
+    }
+
+    fn render(&self) -> Option<String> {
+        if self.has_display {
+            println!(
+                "{}",
+                format!(" display lalala {}/{}", &self.path, "display")
+            );
+            match Command::new(&format!("{}/{}", &self.path, "display")).output() {
+                Ok(output) => {
+                    return Some(
+                        StringOptions::new().render(&String::from_utf8(output.stdout).unwrap()),
+                    );
+                }
+                Err(_) => {}
+            }
+        } else {
+            return Some(StringOptions::new().render(&self.script.clone()));
+        }
+        None
     }
 }
 
@@ -208,12 +300,15 @@ fn main() {
     let (conn, screen_num) = x11rb::connect(None).unwrap();
     let screen = &conn.setup().roots[screen_num];
     let root = screen.root;
+
+    println!("{}", format!("^d^^f11^{}", tester));
+    println!("tester {}", tester);
     conn.change_property8(
         PropMode::REPLACE,
         root,
         AtomEnum::WM_NAME,
         AtomEnum::STRING,
-        tester.as_bytes(),
+        format!("^d^^f11^{}", tester).as_bytes(),
     )
     .unwrap();
 
